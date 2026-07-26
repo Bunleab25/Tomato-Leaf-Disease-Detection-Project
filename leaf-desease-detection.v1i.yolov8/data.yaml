@@ -1,0 +1,13 @@
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 1
+names: ['leaf']
+
+roboflow:
+  workspace: catorange-y7nsc
+  project: leaf-desease-detection-dco7t-6zfdp
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/catorange-y7nsc/leaf-desease-detection-dco7t-6zfdp/dataset/1

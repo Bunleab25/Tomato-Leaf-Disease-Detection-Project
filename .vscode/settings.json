@@ -1,0 +1,5 @@
+{
+    "cmake.sourceDirectory": "/home/bunleab/tomato/esp_idf_ai_cam",
+    "python.defaultInterpreterPath": "/home/bunleab/miniconda3/envs/tomato_torch/bin/python",
+    "python.terminal.activateEnvironment": true
+}

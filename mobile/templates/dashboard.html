@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tomato AI — Leaf Disease Detection</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #080f0c;
+    --bg2: #0e1a15;
+    --panel: #0c1710;
+    --card: #111f1a;
+    --accent: #4ce890;
+    --accent-dim: rgba(76, 232, 144, 0.12);
+    --accent-2: #f6b654;
+    --text: #f0f6f2;
+    --text-secondary: #c8d8ce;
+    --muted: #8da698;
+    --danger: #ff7878;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-light: rgba(255, 255, 255, 0.12);
+    --glass: rgba(14, 28, 22, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.06);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-xs: 8px;
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+    --shadow-btn: 0 2px 12px rgba(76, 232, 144, 0.18);
+    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+    min-height: 100vh;
+    font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    background-image:
+        radial-gradient(ellipse 60% 50% at 15% 10%, rgba(76, 232, 144, 0.06), transparent),
+        radial-gradient(ellipse 50% 40% at 85% 15%, rgba(76, 232, 144, 0.04), transparent),
+        radial-gradient(ellipse 40% 60% at 50% 80%, rgba(26, 50, 38, 0.25), transparent);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ─────────────────────────────────────────── */
+.dashboard {
+    display: grid;
+    grid-template-columns: 272px 1fr;
+    min-height: 100vh;
+}
+
+/* ── Sidebar ────────────────────────────────────────── */
+.sidebar {
+    padding: 32px 20px 24px;
+    border-right: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(8, 15, 12, 0.95), rgba(10, 18, 14, 0.85));
+    backdrop-filter: blur(16px);
+    display: flex;
+    flex-direction: column;
+}
+
+.brand { margin-bottom: 28px; }
+
+.brand h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 700;
+    font-size: 26px;
+    line-height: 1.1;
+    letter-spacing: -0.3px;
+    background: linear-gradient(135deg, var(--text) 40%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.brand-sub {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.sidebar-section {
+    padding: 16px 0;
+    border-top: 1px solid var(--border);
+}
+
+.sidebar-section:first-of-type {
+    border-top: none;
+    padding-top: 0;
+}
+
+.sidebar-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.status-bar {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent-dim);
+    color: #a5f0c4;
+    border: 1px solid rgba(76, 232, 144, 0.18);
+    transition: all var(--transition);
+}
+
+.status-bar::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    box-shadow: 0 0 6px var(--accent);
+}
+
+.status-bar.processing {
+    background: rgba(246, 182, 84, 0.12);
+    color: #ffd28a;
+    border-color: rgba(246, 182, 84, 0.22);
+}
+.status-bar.processing::before {
+    background: var(--accent-2);
+    box-shadow: 0 0 6px var(--accent-2);
+    animation: pulse 1.2s infinite;
+}
+
+.status-bar.error {
+    background: rgba(255, 120, 120, 0.12);
+    color: #ff9f9f;
+    border-color: rgba(255, 120, 120, 0.22);
+}
+.status-bar.error::before {
+    background: var(--danger);
+    box-shadow: 0 0 6px var(--danger);
+}
+
+.status-bar.realtime {
+    background: rgba(76, 232, 144, 0.14);
+    color: #b5f0cf;
+    border-color: rgba(76, 232, 144, 0.28);
+}
+.status-bar.realtime::before { animation: pulse 1.2s infinite; }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+.info-row strong { color: var(--text-secondary); font-weight: 500; }
+
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: rgba(141, 166, 152, 0.5);
+    text-align: center;
+    line-height: 1.5;
+}
+
+/* ── Main ───────────────────────────────────────────── */
+.main {
+    padding: 24px;
+    display: grid;
+    gap: 16px;
+    align-content: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ── Cards ──────────────────────────────────────────── */
+.card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(12px);
+    transition: border-color var(--transition);
+}
+.card:hover { border-color: rgba(255, 255, 255, 0.1); }
+.card.full { grid-column: 1 / -1; }
+
+.card-header-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.card-title {
+    margin: 0 0 4px 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.subtle {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* ── Capture hub ────────────────────────────────────── */
+.capture-hub {
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: 1px solid rgba(76, 232, 144, 0.1);
+    background: linear-gradient(155deg, rgba(10, 22, 16, 0.95), rgba(14, 35, 25, 0.85));
+}
+
+.capture-hub-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.capture-title { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.2px; }
+.capture-subtle { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+.capture-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.capture-actions button,
+.capture-actions .file-label {
+    flex: 1 1 160px;
+    text-align: center;
+}
+
+.capture-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.info-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+}
+
+/* ── Preview ────────────────────────────────────────── */
+.preview {
+    margin-top: 12px;
+    height: 340px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-light);
+    background: rgba(6, 12, 9, 0.8);
+    color: var(--muted);
+    overflow: hidden;
+    position: relative;
+}
+
+.preview img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+}
+
+#previewText {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center; z-index: 1;
+    font-size: 13px; color: var(--muted); opacity: 0.7;
+}
+
+.bounding-box {
+    position: absolute; opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none; z-index: 10;
+    width: 100%; height: 100%; left: 0; top: 0;
+}
+
+.det-box {
+    position: absolute;
+    border: 2px solid #ff6262;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 12px rgba(255,98,98,0.15);
+}
+.det-box.healthy {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 12px rgba(76,232,144,0.15);
+}
+
+.det-label {
+    position: absolute; left: 0; top: -26px;
+    background: rgba(255, 80, 80, 0.92); color: #fff;
+    padding: 3px 8px; border-radius: 6px;
+    font-size: 10px; font-weight: 700;
+    white-space: nowrap; letter-spacing: 0.3px;
+    backdrop-filter: blur(4px);
+}
+.det-box.healthy .det-label {
+    background: rgba(76, 232, 144, 0.92); color: #04200f;
+}
+
+.preview video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+
+/* ── Buttons ────────────────────────────────────────── */
+.buttons { margin-top: 12px; display: flex; gap: 8px; }
+.buttons.primary-actions { align-items: center; }
+
+button, .file-label {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 9px 16px;
+    font-family: inherit;
+    font-weight: 600; font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition);
+    letter-spacing: 0.1px;
+}
+
+.file-label {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    border: 1px solid var(--border-light);
+}
+.file-label:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.primary {
+    background: linear-gradient(135deg, var(--accent), #38c970);
+    color: #04200f;
+    box-shadow: var(--shadow-btn);
+}
+.primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 18px rgba(76, 232, 144, 0.25);
+}
+.primary:active:not(:disabled) { transform: translateY(0); }
+
+.secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-light);
+}
+
+.tertiary {
+    background: rgba(47, 62, 79, 0.5);
+    color: #c8d8e8;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.tertiary:hover:not(:disabled) { background: rgba(47, 62, 79, 0.7); }
+
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Mode pill ──────────────────────────────────────── */
+.mode-pill {
+    display: inline-flex; align-items: center;
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 500;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+}
+
+/* ── Tool panels ────────────────────────────────────── */
+.tool-panel {
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: rgba(6, 14, 10, 0.5);
+}
+.tool-panel summary {
+    cursor: pointer; list-style: none;
+    padding: 10px 14px;
+    font-weight: 600; font-size: 12px;
+    color: var(--text-secondary);
+    user-select: none; letter-spacing: 0.2px;
+}
+.tool-panel summary::-webkit-details-marker { display: none; }
+.tool-panel[open] summary { border-bottom: 1px solid var(--border); }
+
+.panel-body { padding: 10px 12px 12px; }
+.tools-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.error { margin-top: 8px; color: var(--danger); font-size: 12px; min-height: 16px; }
+
+/* ── Result card ────────────────────────────────────── */
+#resultText { font-size: 16px; font-weight: 600; line-height: 1.3; margin-top: 4px; }
+
+.result-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px; padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(76, 232, 144, 0.2);
+    color: #a5f0c4;
+    font-size: 12px; font-weight: 500;
+}
+
+#confidenceText { margin-top: 10px; font-size: 13px; color: var(--muted); }
+
+#diseaseInfo {
+    margin-top: 12px; font-size: 13px;
+    color: var(--text-secondary); line-height: 1.55;
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+}
+#diseaseInfo:empty { display: none; }
+
+.result-empty {
+    margin-top: 16px; padding: 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: linear-gradient(155deg, rgba(6, 14, 10, 0.95), rgba(14, 30, 22, 0.85));
+}
+.result-empty[hidden] { display: none; }
+
+.empty-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.empty-copy { margin-top: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.empty-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px; margin-top: 12px;
+}
+.empty-tip {
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    font-size: 11px; color: var(--text-secondary); line-height: 1.45;
+}
+
+/* ── History ────────────────────────────────────────── */
+.history {
+    margin-top: 10px; max-height: 160px;
+    overflow-y: auto; font-size: 13px; color: var(--muted);
+}
+.history::-webkit-scrollbar { width: 4px; }
+.history::-webkit-scrollbar-track { background: transparent; }
+.history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+.history-item {
+    padding: 8px 12px; border-radius: var(--radius-xs);
+    margin-bottom: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid transparent;
+    transition: all var(--transition); font-size: 12px;
+}
+.history-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--border);
+}
+
+.history-empty { display: grid; gap: 8px; padding: 4px 0; }
+.history-empty-card {
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+}
+.history-empty-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+.history-empty-copy { margin-top: 4px; font-size: 11px; color: var(--muted); line-height: 1.45; }
+
+.chart-wrap { position: relative; min-height: 280px; }
+
+#file { display: none; }
+
+@media (max-width: 980px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .sidebar {
+        border-right: none; border-bottom: 1px solid var(--border);
+        flex-direction: row; flex-wrap: wrap; gap: 16px; padding: 20px;
+    }
+    .brand { margin-bottom: 0; }
+    .sidebar-footer { display: none; }
+    .main { grid-template-columns: 1fr; padding: 16px; }
+    .preview { height: 280px; }
+    .empty-grid { grid-template-columns: 1fr; }
+    .capture-actions button,
+    .capture-actions .file-label { flex-basis: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="dashboard">
+    <aside class="sidebar">
+        <div class="brand">
+            <h1>Tomato AI</h1>
+            <div class="brand-sub">Leaf Disease Detection</div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">System Status</div>
+            <div class="status-bar" id="status">Model ready</div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">Model Info</div>
+            <div class="info-row">Detection <strong>YOLOv8</strong></div>
+            <div class="info-row">Classification <strong>MobileNetV2</strong></div>
+            <div class="info-row">Input <strong>Webcam / Upload</strong></div>
+        </div>
+
+        <div class="sidebar-footer">
+            YOLOv8 + MobileNetV2 Pipeline<br>
+            Built for agricultural diagnostics
+        </div>
+    </aside>
+
+    <main class="main">
+        <section class="card">
+            <div class="card-header-row">
+                <div>
+                    <h3 class="card-title">Image Input</h3>
+                    <div class="subtle">Use your webcam for live detection or upload a leaf image for analysis.</div>
+                </div>
+                <div class="mode-pill" id="modePill">View</div>
+            </div>
+            <div class="capture-hub">
+                <div class="capture-hub-top">
+                    <div>
+                        <div class="capture-title">Webcam Realtime</div>
+                        <div class="capture-subtle">Start your camera for continuous detection, then capture the best frame.</div>
+                    </div>
+                    <div class="capture-meta">
+                        <div class="info-pill">Live</div>
+                        <div class="info-pill">Upload</div>
+                    </div>
+                </div>
+                <div class="capture-actions">
+                    <button class="primary" id="startRealtime">Start Webcam</button>
+                    <button class="secondary" id="stopRealtime" disabled>Stop Webcam</button>
+                    <button class="primary" id="captureBtn" style="display: none; background: linear-gradient(135deg, #d4a032, #b88a28); color: #fff;">Capture Frame</button>
+                    <label for="file" class="file-label">Upload Image</label>
+                </div>
+            </div>
+            <input type="file" id="file" accept="image/*">
+            <div class="preview" id="preview">
+                <div id="previewText">Start webcam or upload a leaf image</div>
+                <div class="bounding-box" id="boundingBox"></div>
+            </div>
+            <div class="buttons primary-actions">
+                <button class="primary" id="analyze">Analyze</button>
+                <button class="secondary" id="reset">Reset</button>
+            </div>
+            <details class="tool-panel" id="editToolsPanel">
+                <summary>Edit Tools</summary>
+                <div class="panel-body">
+                    <div class="tools-row">
+                        <button class="tertiary" id="toggleCropMode">Enable Crop</button>
+                        <button class="secondary" id="applyCrop">Apply Crop</button>
+                        <button class="secondary" id="resetCrop">Reset Crop</button>
+                        <button class="secondary" id="rotateImage">Rotate 90°</button>
+                    </div>
+                </div>
+            </details>
+            <div class="error" id="errorText"></div>
+        </section>
+
+        <section class="card">
+            <h3 class="card-title">Diagnosis Result</h3>
+            <div id="resultText">Waiting for analysis</div>
+            <div class="result-pill" id="resultBadge">No prediction yet</div>
+            <div id="confidenceText">Confidence: —</div>
+            <div id="diseaseInfo"></div>
+            <div class="result-empty" id="resultEmpty">
+                <div class="empty-title">Ready for the next scan</div>
+                <div class="empty-copy">When a frame is analyzed, this panel shows the detected class, confidence score, and care guidance.</div>
+                <div class="empty-grid">
+                    <div class="empty-tip">Use <strong>Start Webcam</strong> for continuous monitoring before capturing the clearest frame.</div>
+                    <div class="empty-tip">Use <strong>Upload Image</strong> when you already have a photo from the field.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card full">
+            <h3 class="card-title">Prediction Confidence</h3>
+            <div class="chart-wrap">
+                <canvas id="pieChart"></canvas>
+            </div>
+        </section>
+
+        <section class="card full">
+            <h3 class="card-title">Scan History</h3>
+            <div class="history" id="history">
+                <div class="history-empty">
+                    <div class="history-empty-card">
+                        <div class="history-empty-label">No scans yet</div>
+                        <div class="history-empty-copy">Recent predictions will appear here with timestamp and confidence.</div>
+                    </div>
+                    <div class="history-empty-card">
+                        <div class="history-empty-label">Suggested workflow</div>
+                        <div class="history-empty-copy">Start the webcam, wait for a stable frame, then capture or upload a clearer image for a final diagnosis.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+const preview = document.getElementById("preview");
+const previewText = document.getElementById("previewText");
+const boundingBox = document.getElementById("boundingBox");
+const fileInput = document.getElementById("file");
+const resultText = document.getElementById("resultText");
+const confidenceText = document.getElementById("confidenceText");
+const history = document.getElementById("history");
+const diseaseInfo = document.getElementById("diseaseInfo");
+const status = document.getElementById("status");
+const errorText = document.getElementById("errorText");
+const resultBadge = document.getElementById("resultBadge");
+const analyzeBtn = document.getElementById("analyze");
+const captureBtn = document.getElementById("captureBtn");
+const resetBtn = document.getElementById("reset");
+const startRealtimeBtn = document.getElementById("startRealtime");
+const stopRealtimeBtn = document.getElementById("stopRealtime");
+const modePill = document.getElementById("modePill");
+const editToolsPanel = document.getElementById("editToolsPanel");
+const toggleCropModeBtn = document.getElementById("toggleCropMode");
+const applyCropBtn = document.getElementById("applyCrop");
+const resetCropBtn = document.getElementById("resetCrop");
+const rotateImageBtn = document.getElementById("rotateImage");
+const resultEmpty = document.getElementById("resultEmpty");
+
+const diseaseDetails = {
+    "Blight": {
+        cause: "Fungal or oomycete infection",
+        treatment: "Use approved fungicide, improve airflow, remove infected leaves"
+    },
+    "Healthy": {
+        cause: "No disease signs",
+        treatment: "Continue balanced watering and periodic monitoring"
+    },
+    "Leaf_Mold": {
+        cause: "High humidity fungal growth",
+        treatment: "Reduce humidity and remove infected foliage"
+    },
+    "Septoria": {
+        cause: "Fungal leaf spot disease",
+        treatment: "Remove affected leaves and apply protective fungicide"
+    },
+    "Virus": {
+        cause: "Viral infection often spread by insects",
+        treatment: "Control vectors and remove heavily infected plants"
+    }
+};
+
+let currentImageUrl = null;
+let chart = null;
+let cameraStream = null;
+let realtimeTimer = null;
+let predictInFlight = false;
+let isRealtime = false;
+const realtimeIntervalMs = 1500;
+let cropModeEnabled = false;
+let cropper = null;
+let originalImageUrl = null;
+
+const videoEl = document.createElement("video");
+videoEl.autoplay = true;
+videoEl.playsInline = true;
+videoEl.muted = true;
+
+const captureCanvas = document.createElement("canvas");
+
+function hasModernGetUserMedia() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+function hasLegacyGetUserMedia() {
+    return !!(navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia);
+}
+
+async function requestCameraStream(constraints) {
+    if (hasModernGetUserMedia()) return navigator.mediaDevices.getUserMedia(constraints);
+    const legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+    if (!legacy) throw new Error("Camera API not supported.");
+    return new Promise((resolve, reject) => { legacy.call(navigator, constraints, resolve, reject); });
+}
+
+async function requestPreferredCameraStream() {
+    const attempts = [
+        { video: { facingMode: { ideal: "environment" } }, audio: false },
+        { video: true, audio: false },
+    ];
+
+    let lastError = null;
+    for (const constraints of attempts) {
+        try {
+            return await requestCameraStream(constraints);
+        } catch (err) {
+            lastError = err;
+        }
+    }
+
+    throw lastError || new Error("Failed to access camera.");
+}
+
+function formatCameraError(err) {
+    const name = err?.name || "";
+    if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        return "Camera permission was denied. Allow camera access and try again.";
+    }
+    if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        return "No camera device was found.";
+    }
+    if (name === "NotReadableError" || name === "TrackStartError") {
+        return "Camera is already in use by another application.";
+    }
+    if (name === "OverconstrainedError" || name === "ConstraintNotSatisfiedError") {
+        return "Requested camera mode is unavailable on this device.";
+    }
+    if (name === "SecurityError") {
+        return "Camera access is blocked by browser security settings.";
+    }
+    return err?.message || "Failed to start webcam";
+}
+
+function pushHistory(prediction, confidence) {
+    const empty = history.querySelector(".history-empty");
+    if (empty) history.innerHTML = "";
+    const item = document.createElement("div");
+    item.className = "history-item";
+    item.textContent = `${new Date().toLocaleTimeString()} — ${prediction} (${(confidence * 100).toFixed(1)}%)`;
+    history.prepend(item);
+    while (history.children.length > 20) history.removeChild(history.lastChild);
+}
+
+function showResultEmptyState() { if (resultEmpty) resultEmpty.hidden = false; }
+function hideResultEmptyState() { if (resultEmpty) resultEmpty.hidden = true; }
+
+function renderHistoryEmptyState() {
+    history.innerHTML = `
+        <div class="history-empty">
+            <div class="history-empty-card">
+                <div class="history-empty-label">No scans yet</div>
+                <div class="history-empty-copy">Recent predictions will appear here with timestamp and confidence.</div>
+            </div>
+            <div class="history-empty-card">
+                <div class="history-empty-label">Suggested workflow</div>
+                <div class="history-empty-copy">Start the webcam, wait for a stable frame, then capture or upload a clearer image for a final diagnosis.</div>
+            </div>
+        </div>`;
+}
+
+function clearCropSelection() { if (cropper) cropper.clear(); }
+
+function updateCropModeUI() {
+    if (!toggleCropModeBtn) return;
+    toggleCropModeBtn.textContent = cropModeEnabled ? "Disable Crop" : "Enable Crop";
+    toggleCropModeBtn.className = cropModeEnabled ? "primary" : "tertiary";
+    if (modePill) modePill.textContent = cropModeEnabled ? "Crop" : "View";
+    if (editToolsPanel && cropModeEnabled) editToolsPanel.open = true;
+}
+
+function getActiveMediaElement() { return preview.querySelector("img, video"); }
+
+function destroyCropper() { if (!cropper) return; cropper.destroy(); cropper = null; }
+
+function startCropper() {
+    const media = getActiveMediaElement();
+    if (!media || media.tagName !== "IMG") { errorText.textContent = "Upload an image first to use crop."; return; }
+    destroyCropper();
+    cropper = new Cropper(media, {
+        viewMode: 1, dragMode: "crop", autoCropArea: 0.8,
+        responsive: true, background: false, modal: true,
+        guides: true, movable: true, zoomable: true,
+        scalable: false, rotatable: false,
+    });
+}
+
+function getRenderedImageMetrics(media) {
+    const rw = media.clientWidth, rh = media.clientHeight;
+    const sw = media.tagName === "VIDEO" ? media.videoWidth : media.naturalWidth;
+    const sh = media.tagName === "VIDEO" ? media.videoHeight : media.naturalHeight;
+    if (!rw || !rh || !sw || !sh) return null;
+    const scale = Math.min(rw / sw, rh / sh);
+    const dw = sw * scale, dh = sh * scale;
+    const px = (rw - dw) / 2, py = (rh - dh) / 2;
+    return { renderWidth: rw, renderHeight: rh, sourceWidth: sw, sourceHeight: sh, drawWidth: dw, drawHeight: dh, padX: px, padY: py, offsetLeft: media.offsetLeft + px, offsetTop: media.offsetTop + py };
+}
+
+async function applyCropToUpload() {
+    if (!cropper) { errorText.textContent = "Enable crop mode first."; return; }
+    const canvas = cropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: "high" });
+    if (!canvas) { errorText.textContent = "Could not read crop result."; return; }
+    const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.95));
+    if (!blob) { errorText.textContent = "Failed to create cropped image."; return; }
+    const url = URL.createObjectURL(blob);
+    const media = getActiveMediaElement();
+    if (media && media.tagName === "IMG") media.src = url;
+    const dt = new DataTransfer(); dt.items.add(new File([blob], "cropped.jpg", { type: "image/jpeg" }));
+    fileInput.files = dt.files;
+    if (currentImageUrl) URL.revokeObjectURL(currentImageUrl);
+    currentImageUrl = url;
+    destroyCropper(); cropModeEnabled = false; updateCropModeUI();
+    clearCropSelection(); clearBoundingBoxes();
+    errorText.textContent = "Crop applied.";
+}
+
+async function rotateUploadedImage90() {
+    const media = getActiveMediaElement();
+    if (!media || media.tagName !== "IMG") { errorText.textContent = "Upload an image first to rotate."; return; }
+    if (cropper) { cropper.rotate(90); errorText.textContent = "Rotated 90°."; return; }
+    const sw = media.naturalWidth, sh = media.naturalHeight;
+    if (!sw || !sh) { errorText.textContent = "Image not ready."; return; }
+    const c = document.createElement("canvas"); c.width = sh; c.height = sw;
+    const ctx = c.getContext("2d");
+    ctx.translate(c.width / 2, c.height / 2); ctx.rotate(Math.PI / 2);
+    ctx.drawImage(media, -sw / 2, -sh / 2);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.95));
+    if (!blob) { errorText.textContent = "Could not rotate."; return; }
+    const url = URL.createObjectURL(blob);
+    media.src = url;
+    const dt = new DataTransfer(); dt.items.add(new File([blob], "rotated.jpg", { type: "image/jpeg" }));
+    fileInput.files = dt.files;
+    if (currentImageUrl) URL.revokeObjectURL(currentImageUrl);
+    currentImageUrl = url;
+    clearBoundingBoxes();
+    errorText.textContent = "Rotated 90°.";
+}
+
+function clearBoundingBoxes() { if (!boundingBox) return; boundingBox.innerHTML = ""; boundingBox.style.opacity = "0"; }
+
+function drawBoundingBoxes(detections) {
+    if (!boundingBox) return;
+    clearBoundingBoxes();
+    const media = preview.querySelector("img, video");
+    if (!media || !Array.isArray(detections) || !detections.length) return;
+    const m = getRenderedImageMetrics(media);
+    if (!m) return;
+    detections.forEach(det => {
+        const bbox = det.bbox || [];
+        if (bbox.length !== 4) return;
+        const [x1, y1, x2, y2] = bbox;
+        const left = m.offsetLeft + (x1 / m.sourceWidth) * m.drawWidth;
+        const top = m.offsetTop + (y1 / m.sourceHeight) * m.drawHeight;
+        const w = Math.max(2, ((x2 - x1) / m.sourceWidth) * m.drawWidth);
+        const h = Math.max(2, ((y2 - y1) / m.sourceHeight) * m.drawHeight);
+        const cls = det.classification?.prediction || "Leaf";
+        const conf = Number(det.classification?.confidence ?? det.confidence ?? 0);
+        const box = document.createElement("div");
+        box.className = cls === "Healthy" ? "det-box healthy" : "det-box";
+        box.style.cssText = `left:${left}px;top:${top}px;width:${w}px;height:${h}px`;
+        const lbl = document.createElement("div");
+        lbl.className = "det-label";
+        lbl.textContent = `${cls} ${(conf * 100).toFixed(1)}%`;
+        box.appendChild(lbl);
+        boundingBox.appendChild(box);
+    });
+    boundingBox.style.opacity = "1";
+}
+
+function renderPrediction(data) {
+    hideResultEmptyState();
+    if (data.no_detection) {
+        resultText.textContent = "No leaf detected";
+        resultBadge.textContent = "N/A";
+        confidenceText.textContent = "Confidence: 0.00%";
+        diseaseInfo.textContent = "No leaf region detected. Try a clearer leaf image.";
+        clearBoundingBoxes();
+        return;
+    }
+    resultText.textContent = data.prediction;
+    resultBadge.textContent = data.prediction;
+    confidenceText.textContent = `Confidence: ${(data.confidence * 100).toFixed(2)}%`;
+    const info = diseaseDetails[data.prediction];
+    diseaseInfo.innerHTML = info
+        ? `<strong>Cause:</strong> ${info.cause}<br><strong>Treatment:</strong> ${info.treatment}`
+        : "No treatment note available.";
+    drawBoundingBoxes(data.detections || []);
+    const labels = Object.keys(data.probabilities || {});
+    const values = Object.values(data.probabilities || {});
+    if (labels.length && values.length) buildChart(labels, values);
+    pushHistory(data.prediction, data.confidence);
+}
+
+async function predictPayload(payload) {
+    const res = await fetch("/predict", { method: "POST", body: payload });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Prediction failed");
+    renderPrediction(data);
+    return data;
+}
+
+async function captureFrameBlob() {
+    if (!videoEl.videoWidth || !videoEl.videoHeight) throw new Error("Camera frame not ready.");
+    captureCanvas.width = videoEl.videoWidth;
+    captureCanvas.height = videoEl.videoHeight;
+    captureCanvas.getContext("2d").drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
+    return new Promise((resolve, reject) => {
+        captureCanvas.toBlob(blob => { blob ? resolve(blob) : reject(new Error("Unable to capture frame.")); }, "image/jpeg", 0.85);
+    });
+}
+
+async function runRealtimePrediction() {
+    if (!isRealtime || predictInFlight) return;
+    predictInFlight = true;
+    try {
+        const blob = await captureFrameBlob();
+        const fd = new FormData(); fd.append("file", blob, "realtime.jpg");
+        await predictPayload(fd);
+        status.textContent = "Realtime running";
+        status.className = "status-bar realtime";
+    } catch (err) {
+        status.textContent = "Realtime error";
+        status.className = "status-bar error";
+        errorText.textContent = err.message || "Realtime prediction failed";
+    } finally { predictInFlight = false; }
+}
+
+function stopRealtimeMode(resetStatus = true) {
+    isRealtime = false;
+    if (realtimeTimer) { clearInterval(realtimeTimer); realtimeTimer = null; }
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    if (preview.contains(videoEl)) preview.removeChild(videoEl);
+    stopRealtimeBtn.disabled = true; startRealtimeBtn.disabled = false;
+    analyzeBtn.style.display = "block";
+    if (captureBtn) captureBtn.style.display = "none";
+    analyzeBtn.disabled = false;
+    if (!fileInput.files[0] && !currentImageUrl && previewText) previewText.style.display = "block";
+    clearBoundingBoxes(); destroyCropper();
+    cropModeEnabled = false; updateCropModeUI(); clearCropSelection();
+    if (resetStatus) {
+        status.textContent = "Model ready"; status.className = "status-bar";
+    }
+}
+
+async function startRealtimeMode() {
+    errorText.textContent = "";
+    if (!hasModernGetUserMedia() && !hasLegacyGetUserMedia()) {
+        status.textContent = "Webcam unavailable"; status.className = "status-bar error";
+        errorText.textContent = !window.isSecureContext ? "Camera requires HTTPS or localhost." : "Browser does not support camera access.";
+        return;
+    }
+    try {
+        cameraStream = await requestPreferredCameraStream();
+        isRealtime = true;
+        videoEl.srcObject = cameraStream;
+        if (previewText) previewText.style.display = "none";
+        preview.querySelectorAll("img, video").forEach(el => el.remove());
+        preview.appendChild(videoEl);
+        if (boundingBox) preview.appendChild(boundingBox);
+        startRealtimeBtn.disabled = true; stopRealtimeBtn.disabled = false;
+        analyzeBtn.style.display = "none";
+        if (captureBtn) captureBtn.style.display = "block";
+        status.textContent = "Realtime running"; status.className = "status-bar realtime";
+        await runRealtimePrediction();
+        realtimeTimer = setInterval(runRealtimePrediction, realtimeIntervalMs);
+    } catch (err) {
+        status.textContent = "Camera blocked"; status.className = "status-bar error";
+        errorText.textContent = formatCameraError(err);
+        stopRealtimeMode(false);
+    }
+}
+
+function buildChart(labels, values) {
+    const ctx = document.getElementById("pieChart").getContext("2d");
+    if (chart) chart.destroy();
+    const pairs = labels.map((l, i) => ({ label: l, value: Number(values[i] || 0) }));
+    pairs.sort((a, b) => b.value - a.value);
+    chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: pairs.map(p => p.label),
+            datasets: [{
+                label: "Confidence",
+                data: pairs.map(p => p.value),
+                backgroundColor: pairs.map((_, i) => i === 0 ? "rgba(76,232,144,0.7)" : "rgba(76,232,144,0.18)"),
+                borderColor: pairs.map((_, i) => i === 0 ? "rgba(76,232,144,1)" : "rgba(76,232,144,0.35)"),
+                borderWidth: 1, borderRadius: 6, maxBarThickness: 56,
+            }]
+        },
+        options: {
+            indexAxis: "y",
+            maintainAspectRatio: false,
+            scales: {
+                x: { min: 0, max: 1, grid: { color: "rgba(255,255,255,0.06)" }, ticks: { color: "#8da698", callback: v => `${(v*100).toFixed(0)}%`, font: { size: 11 } } },
+                y: { grid: { display: false }, ticks: { color: "#c8d8ce", font: { size: 12, weight: "500" } } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: "rgba(14,28,22,0.95)", borderColor: "rgba(76,232,144,0.3)", borderWidth: 1, callbacks: { label: c => ` ${(c.raw*100).toFixed(2)}%` } }
+            }
+        }
+    });
+}
+
+function resetUI() {
+    stopRealtimeMode();
+    if (currentImageUrl) { URL.revokeObjectURL(currentImageUrl); currentImageUrl = null; }
+    fileInput.value = "";
+    if (previewText) previewText.style.display = "block";
+    preview.querySelectorAll("img, video").forEach(el => el.remove());
+    clearBoundingBoxes(); destroyCropper(); clearCropSelection();
+    cropModeEnabled = false; updateCropModeUI();
+    if (editToolsPanel) editToolsPanel.open = false;
+    resultText.textContent = "Waiting for analysis";
+    resultBadge.textContent = "No prediction yet";
+    confidenceText.textContent = "Confidence: —";
+    diseaseInfo.textContent = "";
+    showResultEmptyState();
+    errorText.textContent = "";
+    status.textContent = "Model ready"; status.className = "status-bar";
+    renderHistoryEmptyState();
+    if (chart) { chart.destroy(); chart = null; }
+    buildChart(["No data"], [0]);
+}
+
+fileInput.addEventListener("change", () => {
+    if (isRealtime) stopRealtimeMode();
+    const file = fileInput.files[0];
+    errorText.textContent = "";
+    if (!file) return;
+    if (currentImageUrl) URL.revokeObjectURL(currentImageUrl);
+    if (originalImageUrl) { URL.revokeObjectURL(originalImageUrl); originalImageUrl = null; }
+    currentImageUrl = URL.createObjectURL(file);
+    destroyCropper(); cropModeEnabled = false; updateCropModeUI();
+    if (previewText) previewText.style.display = "none";
+    preview.querySelectorAll("img, video").forEach(el => el.remove());
+    const img = document.createElement("img"); img.src = currentImageUrl;
+    preview.insertBefore(img, boundingBox);
+    clearBoundingBoxes(); clearCropSelection();
+    originalImageUrl = currentImageUrl;
+});
+
+analyzeBtn.addEventListener("click", async () => {
+    if (isRealtime) stopRealtimeMode();
+    const file = fileInput.files[0];
+    if (!file) { errorText.textContent = "Upload an image first."; return; }
+    analyzeBtn.disabled = true;
+    status.textContent = "Processing…"; status.className = "status-bar processing";
+    errorText.textContent = "";
+    try {
+        const fd = new FormData(); fd.append("file", file);
+        await predictPayload(fd);
+        status.textContent = "Model ready"; status.className = "status-bar";
+    } catch (err) {
+        status.textContent = "Error"; status.className = "status-bar error";
+        errorText.textContent = err.message || "Unexpected error";
+    } finally { analyzeBtn.disabled = false; }
+});
+
+resetBtn.addEventListener("click", resetUI);
+
+toggleCropModeBtn.addEventListener("click", () => {
+    cropModeEnabled = !cropModeEnabled; updateCropModeUI();
+    cropModeEnabled ? startCropper() : (destroyCropper(), clearCropSelection());
+});
+
+applyCropBtn.addEventListener("click", async () => {
+    try { await applyCropToUpload(); } catch (_) { errorText.textContent = "Could not apply crop."; }
+});
+
+resetCropBtn.addEventListener("click", () => {
+    if (!originalImageUrl) { destroyCropper(); cropModeEnabled = false; updateCropModeUI(); clearCropSelection(); return; }
+    const img = getActiveMediaElement();
+    if (img && img.tagName === "IMG") { img.src = originalImageUrl; currentImageUrl = originalImageUrl; }
+    clearCropSelection(); clearBoundingBoxes(); destroyCropper();
+    cropModeEnabled = false; updateCropModeUI();
+    errorText.textContent = "Reset to original image.";
+});
+
+rotateImageBtn.addEventListener("click", async () => {
+    try { await rotateUploadedImage90(); } catch (_) { errorText.textContent = "Rotate failed."; }
+});
+
+startRealtimeBtn.addEventListener("click", startRealtimeMode);
+stopRealtimeBtn.addEventListener("click", stopRealtimeMode);
+if (!hasModernGetUserMedia() && !hasLegacyGetUserMedia()) {
+    startRealtimeBtn.disabled = true;
+    startRealtimeBtn.textContent = "Webcam Unsupported";
+}
+
+buildChart(["No data"], [0]);
+updateCropModeUI();
+
+if (captureBtn) {
+    captureBtn.addEventListener("click", () => {
+        const c = document.createElement("canvas");
+        const ctx = c.getContext("2d");
+        let w, h, src;
+        if (isRealtime && videoEl.videoWidth) { w = videoEl.videoWidth; h = videoEl.videoHeight; src = videoEl; }
+        if (src) {
+            c.width = w; c.height = h; ctx.drawImage(src, 0, 0, w, h);
+            c.toBlob(blob => {
+                const dt = new DataTransfer();
+                dt.items.add(new File([blob], "captured.jpg", { type: "image/jpeg" }));
+                fileInput.files = dt.files;
+                if (isRealtime) stopRealtimeMode();
+                fileInput.dispatchEvent(new Event("change"));
+            }, "image/jpeg", 0.95);
+        }
+    });
+}
+</script>
+</body>
+</html>
