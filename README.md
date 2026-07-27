@@ -2,9 +2,7 @@
 
 An AI-powered computer vision project for detecting and classifying tomato leaf diseases from images. This project combines object detection and image classification into a practical web-based application that can be used for plant health monitoring and precision agriculture.
 
-## Why this project matters
 
-Early detection of plant disease can help farmers reduce crop losses, improve yield quality, and make faster decisions. This project demonstrates how deep learning can support real-world agricultural monitoring through an end-to-end image-based solution.
 
 ## Project overview
 
